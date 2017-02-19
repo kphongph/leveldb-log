@@ -1,0 +1,31 @@
+{
+  "name": "level-logdb",
+  "version": "0.0.1",
+  "description": "log-structured stream database using leveldb as back-ended",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kphongph/level-logdb.git"
+  },
+  "keywords": [
+    "leveldb",
+    "log-structured"
+  ],
+  "author": "Phongphun Kijsanayothin <kphongph@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kphongph/level-logdb/issues"
+  },
+  "homepage": "https://github.com/kphongph/level-logdb#readme",
+  "dependencies": {
+    "changeset": "^0.2.1",
+    "level": "^1.6.0",
+    "level-sublevel": "^6.6.1"
+  },
+  "devDependencies": {
+    "request": "^2.79.0"
+  }
+}
