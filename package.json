@@ -23,6 +23,7 @@
   "dependencies": {
     "changeset": "^0.2.1",
     "level": "^1.6.0",
+    "level-hooks": "^4.5.0",
     "level-sublevel": "^6.6.1"
   },
   "devDependencies": {

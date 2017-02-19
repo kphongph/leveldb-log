@@ -1,35 +1,41 @@
 var sublevel = require('level-sublevel');
+var hooks = require('level-hooks');
 var diff = require('changeset');
+
+module.exports = logdb;
 
 function logdb(maindb,opts) {
   var db = sublevel(maindb);  
+  hooks(db);
   
-  if(!db.append) {
-    db.append = append.bind(null,db);   
+  if(!db.log) {
+    db.log = db.sublevel('log');
   }
 
-  if(!db.current) {
-    db.current = db.sublevel('current');
+  if(!db.createLogStream) {
+    db.createLogStream = createLogStream.bind(null,db);
   }
 
+  db.hooks.pre(
+    { start: '\x00', end: '\xFF' },
+    function(change,add,batch) {
+      if(change.type === 'put') {
+        var ts = (new Date()).getTime();
+        db.get(change.key,function(err,value) {
+          if(err) value = {};
+          var _set = diff(value,change.value);
+          if(_set.length > 0) {
+            db.log.put(ts,{'key':change.key,'changeset':_set});
+          }
+        });
+      }
+    }
+  );
   return db;
 }
 
-module.exports = function(db,opts) {
-  return logdb(db,opts);
-}
+function createLogStream(db) {
+  return db.log.createReadStream();
+}  
+  
 
-var append = function(db,key,value) {
-  var ts = (new Date()).getTime();
-  db.current.get(key,function(err,old) {
-    if(err) {
-      old = {};
-    }
-    var _set = diff(old,value);
-    if(_set.length > 0) {
-      db.put(ts,{'key':key,'changeset':_set});
-      db.current.put(key,value);
-    }
-  });
-  // db.(ts,{'key':key
-}
