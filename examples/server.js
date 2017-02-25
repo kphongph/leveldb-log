@@ -5,11 +5,7 @@ var levelup = require('levelup');
 var through2 = require('through2');
 var logdb = require('..');
 
-var db = logdb(levelup('./mydb',{valueEncoding:'json'}));
-
-db.ensureLogStream(function() {
-  console.log('ensureLog');
-});
+var db = logdb(levelup('./timedb',{valueEncoding:'json'}));
 
 http.createServer(function(req,res) {
   var query = url.parse(req.url,true).query;

@@ -1,11 +1,8 @@
 var sublevel = require('level-sublevel');
 var hooks = require('level-hooks');
 var diff = require('changeset');
-var asynclock = require('async-lock');
 var through2 = require('through2');
 var timestamp = require('monotonic-timestamp');
-
-var lock = new asynclock();
 
 module.exports = logdb;
 
@@ -15,7 +12,7 @@ function logdb(maindb,opts) {
   
   if(!db.log) {
     db.log = db.sublevel('log');
-    db.logCurrent = db.sublevel('logCurrent');
+    db.log._seq = 0;
   }
 
   if(!db.createLogStream) {
@@ -34,15 +31,10 @@ function logdb(maindb,opts) {
     { start: '\x00', end: '\xFF' },
     function(change,add,batch) {
       if(change.type === 'put') {
-        var ts = timestamp();
-        db.get(change.key,function(err,value) {
-          if(err) value = {};
-          var _set = diff(value,change.value);
-          if(_set.length > 0) {
-            db.log.put(ts,{'key':change.key,'changeset':_set});
-            db.logCurrent.put(change.key,change.value);
-          }
-        });
+        db.log.put(timestamp(),{
+         'key':change.key,
+         'changes':diff({},change.value)}
+        );
       }
     }
   );
@@ -50,22 +42,14 @@ function logdb(maindb,opts) {
 }
 
 function dropLog(db,cb) {
-  var dropCurrent = 0;
-  var dropLog = 0;
-  var stream = db.logCurrent.createKeyStream();
-  stream.pipe(through2.obj(function(chunk,enc,callback) {
-    dropCurrent++;
-    db.logCurrent.del(chunk,callback);
+  var dropLog=0;
+  var logStream = db.log.createKeyStream();
+  logStream.pipe(through2.obj(function(chunk,enc,callback) {
+    dropLog++;
+    db.log.del(chunk,callback);
   })).on('finish',function() {
-    var logStream = db.log.createKeyStream();
-    logStream.pipe(through2.obj(function(chunk,enc,callback) {
-      dropLog++;
-      db.log.del(chunk,callback);
-    })).on('finish',function() {
-      cb(dropCurrent,dropLog);
-    });
+    cb(dropLog);
   });
-
 }
 
 function ensureLogStream(db,cb) {
@@ -91,7 +75,9 @@ function ensureLogStream(db,cb) {
 }
 
 function createLogStream(db,options) {
-  return db.log.createReadStream(options);
+  if(!options) options = {};
+  var stream = db.log.createReadStream();
+  return stream;
 }  
   
 

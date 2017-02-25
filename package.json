@@ -21,7 +21,6 @@
   },
   "homepage": "https://github.com/kphongph/level-logdb#readme",
   "dependencies": {
-    "async-lock": "^0.3.9",
     "changeset": "^0.2.1",
     "level": "^1.6.0",
     "level-hooks": "^4.5.0",
@@ -30,6 +29,5 @@
     "through2": "^2.0.3"
   },
   "devDependencies": {
-    "request": "^2.79.0"
   }
 }
