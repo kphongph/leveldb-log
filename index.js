@@ -1,8 +1,11 @@
 var sublevel = require('level-sublevel');
 var hooks = require('level-hooks');
+var deleteRange = require('level-delete-range');
 var diff = require('changeset');
 var through2 = require('through2');
 var timestamp = require('monotonic-timestamp');
+var endstream = require('end-stream');
+
 
 module.exports = logdb;
 
@@ -12,19 +15,19 @@ function logdb(maindb,opts) {
   
   if(!db.log) {
     db.log = db.sublevel('log');
-    db.log._seq = 0;
+    db.compact = db.sublevel('compact');
   }
 
   if(!db.createLogStream) {
     db.createLogStream = createLogStream.bind(null,db);
   }
 
-  if(!db.ensureLogStream) {
-    db.ensureLogStream = ensureLogStream.bind(null,db);
-  }
-
   if(!db.dropLog) {
     db.dropLog = dropLog.bind(null,db);
+  }
+
+  if(!db.compactLog) {
+    db.compactLog = compactLog.bind(null,db);
   }
 
   db.hooks.pre(
@@ -32,13 +35,51 @@ function logdb(maindb,opts) {
     function(change,add,batch) {
       if(change.type === 'put') {
         db.log.put(timestamp(),{
-         'key':change.key,
-         'changes':diff({},change.value)}
+          'key':change.key,
+          'changes':diff({},change.value)}
         );
+      } else {
+        if(change.type === 'del') {
+          db.log.put(timestamp(),{
+            'key':change.key,
+            'changes':[],
+            'delete':true
+          });
+        }
       }
     }
   );
   return db;
+}
+
+function compactLog(db,options,cb) {
+  var compact = 0;
+  deleteRange(db.compact,{},function(err) {
+    var stream = db.log.createReadStream(options);
+    stream.pipe(endstream(function(chunk,callback) {
+      compact++;
+      db.compact.put(chunk.value.key,{
+        'ts':chunk.key,
+        'delete':chunk.delete?chunk.delete:false,
+        'changes':chunk.value.changes},callback);
+    })).on('finish',function() {
+      deleteRange(db.log,options,function(err) {
+        var ins = db.compact.createReadStream();
+        ins.pipe(endstream(function(chunk,callback) {
+          if(!chunk.delete) {
+            compact--;
+            db.log.put(chunk.value.ts,{
+              key:chunk.key,
+              changes:chunk.value.changes
+            },callback);
+          }
+        })).on('finish',function(err) {
+           cb(err,compact);
+        })
+      });
+ });
+  });
+
 }
 
 function dropLog(db,cb) {
@@ -49,28 +90,6 @@ function dropLog(db,cb) {
     db.log.del(chunk,callback);
   })).on('finish',function() {
     cb(dropLog);
-  });
-}
-
-function ensureLogStream(db,cb) {
-  var _idx = 0;
-  db.createReadStream().on('data',function(value) {
-    var _set = [];
-    db.logCurrent.get(value.key,function(err,_current) {
-      if(!err) {
-        _set = diff(_current,value.value);
-      } else {
-        _set = diff({},value.value);
-      }
-      if(_set.length > 0) {
-        _idx++;
-        ts = timestamp();
-        db.log.put(ts,{'key':value.key,'changeset':_set});
-        db.logCurrent.put(value.key,value.value);
-      }
-    });
-  }).on('end',function() {
-    console.log('-ensureLogStream',_idx);
   });
 }
 

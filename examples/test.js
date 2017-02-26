@@ -18,9 +18,16 @@ function run() {
 
 function readLog(cb) {
   var count =0;
+  var key = null;
   db.createLogStream().on('data',function(data) {
     count++;
-    console.log(JSON.stringify(data,null,2));
+    console.log(count,data.key);
+    if(count == 5) key = data.key; 
+    if(count>=10) {
+      db.compactLog({'end':key},function(err,compact) {
+         console.log('Compacted',compact);
+      });
+    }
   }).on('end',function() { 
     console.log('log entries',count);
     db.createReadStream().on('data',function(data) {
