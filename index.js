@@ -9,8 +9,8 @@ var endstream = require('end-stream');
 
 module.exports = logdb;
 
-function logdb(maindb,opts) {
-  var db = sublevel(maindb);  
+function logdb(db,opts) {
+  // var db = sublevel(maindb);  
   hooks(db);
   
   if(!db.log) {
@@ -53,26 +53,31 @@ function logdb(maindb,opts) {
 }
 
 function compactLog(db,options,cb) {
+  if(!options) options = {};
+
   var compact = 0;
   deleteRange(db.compact,{},function(err) {
     var stream = db.log.createReadStream(options);
     stream.pipe(endstream(function(chunk,callback) {
       compact++;
-      db.compact.put(chunk.value.key,{
-        'ts':chunk.key,
-        'delete':chunk.delete?chunk.delete:false,
-        'changes':chunk.value.changes},callback);
+      console.log('>compact',chunk.key,chunk.delete);
+      if(!chunk.delete) {
+        db.compact.put(chunk.value.key,{
+          'ts':chunk.key,
+          'changes':chunk.value.changes},callback);
+      } else {
+        db.compact.del(chunk.value.key,callback);
+      }
     })).on('finish',function() {
       deleteRange(db.log,options,function(err) {
         var ins = db.compact.createReadStream();
         ins.pipe(endstream(function(chunk,callback) {
-          if(!chunk.delete) {
-            compact--;
-            db.log.put(chunk.value.ts,{
-              key:chunk.key,
-              changes:chunk.value.changes
-            },callback);
-          }
+          compact--;
+          console.log('<log',chunk.key);
+          db.log.put(chunk.value.ts,{
+            key:chunk.key,
+            changes:chunk.value.changes
+          },callback);
         })).on('finish',function(err) {
            cb(err,compact);
         })

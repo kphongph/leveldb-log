@@ -1,5 +1,5 @@
 {
-  "name": "level-logdb",
+  "name": "leveldb-log",
   "version": "0.0.1",
   "description": "log-structured stream database using leveldb as back-ended",
   "main": "index.js",
