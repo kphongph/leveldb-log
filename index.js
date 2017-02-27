@@ -10,9 +10,9 @@ var endstream = require('end-stream');
 module.exports = logdb;
 
 function logdb(db,opts) {
-  // var db = sublevel(maindb);  
+  // var db = sublevel(maindb);
   hooks(db);
-  
+
   if(!db.log) {
     db.log = db.sublevel('log');
     db.compact = db.sublevel('compact');
@@ -60,8 +60,9 @@ function compactLog(db,options,cb) {
     var stream = db.log.createReadStream(options);
     stream.pipe(endstream(function(chunk,callback) {
       compact++;
-      console.log('>compact',chunk.key,chunk.delete);
-      if(!chunk.delete) {
+      chunk.value.delete = chunk.value.delete?chunk.value.delete:false;
+      //console.log('>compact',chunk.key,chunk.value.delete);
+      if(!chunk.value.delete) {
         db.compact.put(chunk.value.key,{
           'ts':chunk.key,
           'changes':chunk.value.changes},callback);
@@ -73,7 +74,7 @@ function compactLog(db,options,cb) {
         var ins = db.compact.createReadStream();
         ins.pipe(endstream(function(chunk,callback) {
           compact--;
-          console.log('<log',chunk.key);
+          //console.log('<log',chunk.value.ts);
           db.log.put(chunk.value.ts,{
             key:chunk.key,
             changes:chunk.value.changes
@@ -102,6 +103,4 @@ function createLogStream(db,options) {
   if(!options) options = {};
   var stream = db.log.createReadStream();
   return stream;
-}  
-  
-
+}
