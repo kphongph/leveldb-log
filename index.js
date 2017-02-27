@@ -22,9 +22,11 @@ function logdb(db,opts) {
     db.createLogStream = createLogStream.bind(null,db);
   }
 
+  /*
   if(!db.dropLog) {
     db.dropLog = dropLog.bind(null,db);
   }
+  */
 
   if(!db.compactLog) {
     db.compactLog = compactLog.bind(null,db);
