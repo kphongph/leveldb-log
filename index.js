@@ -60,8 +60,9 @@ function compactLog(db,options,cb) {
     var stream = db.log.createReadStream(options);
     stream.pipe(endstream(function(chunk,callback) {
       compact++;
-      console.log('>compact',chunk.key,chunk.delete);
-      if(!chunk.delete) {
+      chunk.value.delete = chunk.value.delete?chunk.value.delete:false;
+    //  console.log('>compact',chunk.key,chunk.delete);
+      if(!chunk.value.delete) {
         db.compact.put(chunk.value.key,{
           'ts':chunk.key,
           'changes':chunk.value.changes},callback);
@@ -73,7 +74,7 @@ function compactLog(db,options,cb) {
         var ins = db.compact.createReadStream();
         ins.pipe(endstream(function(chunk,callback) {
           compact--;
-          console.log('<log',chunk.key);
+     //     console.log('<log',chunk.key);
           db.log.put(chunk.value.ts,{
             key:chunk.key,
             changes:chunk.value.changes
@@ -87,6 +88,7 @@ function compactLog(db,options,cb) {
 
 }
 
+/*
 function dropLog(db,cb) {
   var dropLog=0;
   var logStream = db.log.createKeyStream();
@@ -97,10 +99,11 @@ function dropLog(db,cb) {
     cb(dropLog);
   });
 }
+*/
 
 function createLogStream(db,options) {
   if(!options) options = {};
-  var stream = db.log.createReadStream();
+  var stream = db.log.createReadStream(options);
   return stream;
 }  
   
